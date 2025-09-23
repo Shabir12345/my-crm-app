@@ -7,15 +7,15 @@ import { marked } from 'marked';
 const App = () => {
   // Use the Firebase projectId as the unique app ID for Firestore paths
   const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
-};
-  const appId = process.env.REACT_APP_FIREBASE_PROJECT_ID;
+    apiKey: "AIzaSyC3GXJMBCPAhbZFGgavxyRova_Hno0csVA",
+    authDomain: "vitalpulsecrm.firebaseapp.com",
+    projectId: "vitalpulsecrm",
+    storageBucket: "vitalpulsecrm.firebasestorage.app",
+    messagingSenderId: "671657196543",
+    appId: "1:671657196543:web:15a2b69b7371d0b7a8c5ca",
+    measurementId: "G-XXYKEHF990"
+  };
+  const appId = firebaseConfig.projectId;
 
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
@@ -483,7 +483,7 @@ const AccountForm = ({ account, onSave, onClose, onDelete }) => {
 
   // IMPORTANT: For production, move API keys to secure environment variables.
   const callGeminiAPI = async (prompt, mimeType = 'text/plain', inlineData = null, responseSchema = null) => {
-    const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+    const apiKey = "";
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
     const headers = { 'Content-Type': 'application/json' };
     

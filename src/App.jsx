@@ -125,6 +125,7 @@ const App = () => {
         createdAt: Timestamp.now(),
         notes: [],
         value: Number(newAccount.value) || 0,
+        monthlyValue: Number(newAccount.monthlyValue) || 0,
         dealScore: 50,
         expectedCloseDate: newAccount.expectedCloseDate ? Timestamp.fromDate(new Date(newAccount.expectedCloseDate)) : null,
         nextFollowUpDate: newAccount.nextFollowUpDate ? Timestamp.fromDate(new Date(newAccount.nextFollowUpDate)) : null,
@@ -143,6 +144,7 @@ const App = () => {
       await updateDoc(docRef, {
         ...updatedAccount,
         value: Number(updatedAccount.value) || 0,
+        monthlyValue: Number(updatedAccount.monthlyValue) || 0,
         expectedCloseDate: updatedAccount.expectedCloseDate ? Timestamp.fromDate(new Date(updatedAccount.expectedCloseDate)) : null,
         nextFollowUpDate: updatedAccount.nextFollowUpDate ? Timestamp.fromDate(new Date(updatedAccount.nextFollowUpDate)) : null,
       });
@@ -182,7 +184,7 @@ const App = () => {
       values[stage.name] = 0;
     });
     Object.values(accounts).flat().forEach(account => {
-      if (account.stage !== 'Closed Won' && account.stage !== 'Closed Lost') {
+      if (account.stage !== 'Closed Won' && account.stage !== 'Closed Lost' && account.stage !== 'Business Intel') {
         values[account.stage] = (values[account.stage] || 0) + (account.value || 0);
       }
     });
@@ -292,7 +294,7 @@ const App = () => {
                     onClick={() => { setSelectedAccount(account); setShowModal(true); }}
                   >
                     <p className="font-semibold text-gray-900">{account.companyName}</p>
-                    <p className="text-sm text-gray-600 truncate">{account.dealName}</p>
+                    <p className="text-sm text-gray-600 truncate">{account.servicesNeeded}</p>
                     <div className="flex items-center justify-between text-sm mt-2">
                       <p className="text-gray-700 font-bold">${(account.value || 0).toLocaleString()}</p>
                       <span className={`px-2 py-1 text-xs font-semibold rounded-full ${account.dealScore > 80 ? 'bg-green-200 text-green-800' : account.dealScore > 50 ? 'bg-yellow-200 text-yellow-800' : 'bg-red-200 text-red-800'}`}>
@@ -459,8 +461,9 @@ const AuthComponent = ({ auth }) => {
 const AccountForm = ({ account, onSave, onClose, onDelete }) => {
   const [formData, setFormData] = useState({
     companyName: account?.companyName || '',
-    dealName: account?.dealName || '',
+    servicesNeeded: account?.servicesNeeded || '',
     value: account?.value || '',
+    monthlyValue: account?.monthlyValue || '',
     expectedCloseDate: account?.expectedCloseDate?.toDate().toISOString().split('T')[0] || '',
     nextFollowUpDate: account?.nextFollowUpDate?.toDate().toISOString().split('T')[0] || '',
     contactName: account?.contactName || '',
@@ -544,11 +547,12 @@ const AccountForm = ({ account, onSave, onClose, onDelete }) => {
     Consider these primary factors:
     1. The deal's progression through the sales funnel. This is the most important indicator.
     2. The combined sentiment of the notes, and the trend of that sentiment over time. Recent positive sentiment is more important than old negative sentiment.
-    3. The deal's value and other details.
+    3. The deal's value and other details including the setup fee and monthly subscription.
 
     Account Details:
     Current Stage: ${data.stage}
     Deal Value: $${data.value}
+    Monthly Value: $${data.monthlyValue}
     Company Name: ${data.companyName}
 
     Chronological History (Notes):
@@ -572,7 +576,7 @@ const AccountForm = ({ account, onSave, onClose, onDelete }) => {
 
     Account Details:
     Company Name: ${formData.companyName}
-    Deal Name: ${formData.dealName}
+    Services Needed: ${formData.servicesNeeded}
     Current Stage: ${formData.stage}
     Primary Contact: ${formData.contactName}
     Notes from previous interactions:
@@ -602,7 +606,7 @@ const AccountForm = ({ account, onSave, onClose, onDelete }) => {
 
     Format the response with markdown. Use a single heading, followed by bullet points for each section. Keep each section to a maximum of 3-4 bullet points.
 
-    ## Meeting Agenda: ${formData.companyName} - ${formData.dealName}
+    ## Meeting Agenda: ${formData.companyName} - ${formData.servicesNeeded}
 
     **Objective**
     - [Briefly state the goal of the meeting based on the current stage.]
@@ -703,13 +707,14 @@ const AccountForm = ({ account, onSave, onClose, onDelete }) => {
         return;
       }
       setDictationStatus('Thinking...');
-      const prompt = `Based on the following transcript, extract key information and return a JSON object with keys for companyName, dealName, value (as a number), contactName, contactTitle, contactEmail, and contactPhone. If a value is not found, use a null. Do not include any other text besides the JSON. Transcript: "${finalTranscript.trim()}"`;
+      const prompt = `Based on the following transcript, extract key information and return a JSON object with keys for companyName, servicesNeeded, value (as a number), monthlyValue (as a number), contactName, contactTitle, contactEmail, and contactPhone. If a value is not found, use a null. Do not include any other text besides the JSON. Transcript: "${finalTranscript.trim()}"`;
       const jsonText = await callGeminiAPI(prompt, 'text/plain', null, {
         type: "OBJECT",
         properties: {
             "companyName": { "type": "STRING" },
-            "dealName": { "type": "STRING" },
+            "servicesNeeded": { "type": "STRING" },
             "value": { "type": "NUMBER" },
+            "monthlyValue": { "type": "NUMBER" },
             "contactName": { "type": "STRING" },
             "contactTitle": { "type": "STRING" },
             "contactEmail": { "type": "STRING" },
@@ -723,6 +728,7 @@ const AccountForm = ({ account, onSave, onClose, onDelete }) => {
           ...prev,
           ...parsedData,
           value: parsedData.value || '',
+          monthlyValue: parsedData.monthlyValue || '',
         }));
       } else {
         console.error("AI parsing failed: No text in response.");
@@ -874,8 +880,8 @@ const AccountForm = ({ account, onSave, onClose, onDelete }) => {
       e.preventDefault();
       setIsAddingAccount(true);
       const updatedFormData = { ...formData };
-      if (updatedFormData.stage === 'Business Intel' && !updatedFormData.dealName) {
-        updatedFormData.dealName = 'N/A';
+      if (updatedFormData.stage === 'Business Intel' && !updatedFormData.servicesNeeded) {
+        updatedFormData.servicesNeeded = 'N/A';
       }
       try {
         const newDealScore = await recalculateDealScore(updatedFormData);
@@ -921,12 +927,16 @@ const AccountForm = ({ account, onSave, onClose, onDelete }) => {
           <input type="text" name="companyName" value={formData.companyName} onChange={handleChange} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Deal Name</label>
-          <input type="text" name="dealName" value={formData.dealName} onChange={handleChange} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" />
+          <label className="block text-sm font-medium text-gray-700">Services Needed</label>
+          <input type="text" name="servicesNeeded" value={formData.servicesNeeded} onChange={handleChange} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700">Deal Value ($)</label>
           <input type="number" name="value" value={formData.value} onChange={handleChange} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Monthly Value ($)</label>
+          <input type="number" name="monthlyValue" value={formData.monthlyValue} onChange={handleChange} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700">Expected Close Date</label>

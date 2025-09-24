@@ -262,7 +262,7 @@ const App = () => {
         <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
           <h3 className="text-lg font-bold text-gray-800 mb-4">Pipeline Value by Stage</h3>
           <div className="flex justify-between items-end h-48 w-full">
-            {funnelStages.filter(s => s.name !== 'Closed Won' && s.name !== 'Closed Lost').map(stage => (
+            {funnelStages.filter(s => s.name !== 'Closed Won' && s.name !== 'Closed Lost' && s.name !== 'Business Intel').map(stage => (
               <div key={stage.name} className="flex flex-col items-center flex-grow mx-1">
                 <div
                   className={`w-full rounded-t-lg transition-all duration-500 ${stage.color}`}

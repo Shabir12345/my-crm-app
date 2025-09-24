@@ -245,12 +245,15 @@ const App = () => {
   }
 
   if (error) {
-    return <div className="flex items-center justify-center min-h-screen text-red-500 text-lg p-4 bg-gray-100">{error}</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen text-red-500 text-lg p-4 bg-gray-100">
+        {error}
+      </div>
+    );
   }
 
   return (
     <div className="bg-gray-100 min-h-screen font-sans antialiased">
-      <script src="https://cdn.tailwindcss.com"></script>
       <div className="p-6">
         <header className="flex items-center justify-between bg-white shadow-sm p-4 rounded-lg mb-6">
           <h1 className="text-2xl font-bold text-gray-800">AI Services CRM</h1>

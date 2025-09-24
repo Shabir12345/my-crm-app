@@ -5,17 +5,20 @@ import { getFirestore, collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc
 import { marked } from 'marked';
 
 const App = () => {
+  // Use a fallback to an empty object if process is not defined, which happens outside of the Node.js environment
+  const env = typeof process !== 'undefined' && process.env ? process.env : {};
+
   // Use the Firebase projectId as the unique app ID for Firestore paths
   const firebaseConfig = {
-    apiKey: "AIzaSyC3GXJMBCPAhbZFGgavxyRova_Hno0csVA",
-    authDomain: "vitalpulsecrm.firebaseapp.com",
-    projectId: "vitalpulsecrm",
-    storageBucket: "vitalpulsecrm.firebasestorage.app",
-    messagingSenderId: "671657196543",
-    appId: "1:671657196543:web:15a2b69b7371d0b7a8c5ca",
-    measurementId: "G-XXYKEHF990"
+    apiKey: env.REACT_APP_FIREBASE_API_KEY,
+    authDomain: env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+    projectId: env.REACT_APP_FIREBASE_PROJECT_ID,
+    storageBucket: env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+    appId: env.REACT_APP_FIREBASE_APP_ID,
+    measurementId: env.REACT_APP_FIREBASE_MEASUREMENT_ID,
   };
-  const appId = firebaseConfig.projectId;
+  const appId = env.REACT_APP_FIREBASE_PROJECT_ID;
 
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
@@ -42,7 +45,12 @@ const App = () => {
   // Initialize Firebase and set up auth listener on component mount
   useEffect(() => {
     try {
-      if (Object.keys(firebaseConfig).length > 0) {
+      if (
+        firebaseConfig.apiKey &&
+        firebaseConfig.authDomain &&
+        firebaseConfig.projectId &&
+        firebaseConfig.appId
+      ) {
         const app = initializeApp(firebaseConfig);
         const firestore = getFirestore(app);
         const authInstance = getAuth(app);
@@ -62,7 +70,7 @@ const App = () => {
       setError("Failed to initialize the application.");
       setIsLoading(false);
     }
-  }, []);
+  }, [firebaseConfig.apiKey, firebaseConfig.authDomain, firebaseConfig.projectId, firebaseConfig.appId]);
 
   // Set up Firestore listener after user is authenticated
   useEffect(() => {
@@ -483,7 +491,14 @@ const AccountForm = ({ account, onSave, onClose, onDelete }) => {
 
   // IMPORTANT: For production, move API keys to secure environment variables.
   const callGeminiAPI = async (prompt, mimeType = 'text/plain', inlineData = null, responseSchema = null) => {
-    const apiKey = "";
+    // Safely access the environment variable
+    const apiKey = typeof process !== 'undefined' ? process.env.REACT_APP_GEMINI_API_KEY : '';
+    if (!apiKey) {
+      console.error("Gemini API key is not configured.");
+      setDictationStatus('API key not found. Please check environment variables.');
+      return null;
+    }
+
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
     const headers = { 'Content-Type': 'application/json' };
     

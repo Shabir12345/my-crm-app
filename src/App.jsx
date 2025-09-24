@@ -167,6 +167,34 @@ const App = () => {
     }
   };
 
+  // The new function that handles adding notes, now in the parent component
+  const handleAddNoteToAccount = async (accountId, noteText) => {
+    if (!db || !user || !noteText.trim() || !accountId) return false;
+    
+    try {
+      const currentAccount = Object.values(accounts).flat().find(acc => acc.id === accountId);
+      if (!currentAccount) return false;
+
+      const newNote = {
+        text: noteText,
+        timestamp: new Date().toISOString(),
+        sentiment: 'Neutral' // Default sentiment, can be enhanced with AI analysis
+      };
+      
+      const updatedNotes = [...(currentAccount.notes || []), newNote];
+
+      // Update Firestore
+      const docRef = doc(db, `artifacts/${appId}/users/${user.uid}/accounts`, accountId);
+      await updateDoc(docRef, { notes: updatedNotes });
+      
+      // We don't need to manually update state here, as onSnapshot will do it for us
+      return true;
+    } catch (err) {
+      setError("Failed to add note.");
+      return false;
+    }
+  };
+
   const totalPipelineValue = Object.values(accounts).flat().filter(acc => acc.stage !== 'Closed Won' && acc.stage !== 'Closed Lost' && acc.stage !== 'Business Intel').reduce((sum, acc) => sum + (acc.value || 0), 0);
   const numberOfActiveDeals = Object.values(accounts).flat().filter(acc => acc.stage !== 'Closed Won' && acc.stage !== 'Closed Lost' && acc.stage !== 'Business Intel').length;
   const upcomingFollowups = Object.values(accounts).flat().filter(acc => {
@@ -328,6 +356,7 @@ const App = () => {
               onSave={selectedAccount ? handleUpdateAccount : handleAddAccount}
               onClose={() => setShowModal(false)}
               onDelete={selectedAccount ? handleDeleteAccount : null}
+              onAddNote={handleAddNoteToAccount}
             />
           </div>
         </div>
@@ -458,7 +487,7 @@ const AuthComponent = ({ auth }) => {
   );
 };
 
-const AccountForm = ({ account, onSave, onClose, onDelete }) => {
+const AccountForm = ({ account, onSave, onClose, onDelete, onAddNote }) => {
   const [formData, setFormData] = useState({
     companyName: account?.companyName || '',
     servicesNeeded: account?.servicesNeeded || '',
@@ -494,14 +523,13 @@ const AccountForm = ({ account, onSave, onClose, onDelete }) => {
 
   // IMPORTANT: For production, move API keys to secure environment variables.
   const callGeminiAPI = async (prompt, mimeType = 'text/plain', inlineData = null, responseSchema = null) => {
-    // Safely access the environment variable
-    const apiKey = typeof process !== 'undefined' ? process.env.REACT_APP_GEMINI_API_KEY : '';
-    if (!apiKey) {
+    // Use a fallback key for local testing
+    const apiKey = typeof process !== 'undefined' ? process.env.REACT_APP_GEMINI_API_KEY : 'YOUR_ACTUAL_GEMINI_API_KEY_HERE';
+    if (!apiKey || apiKey === 'YOUR_ACTUAL_GEMINI_API_KEY_HERE') {
       console.error("Gemini API key is not configured.");
       setDictationStatus('API key not found. Please check environment variables.');
       return null;
     }
-
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
     const headers = { 'Content-Type': 'application/json' };
     
@@ -668,7 +696,7 @@ const AccountForm = ({ account, onSave, onClose, onDelete }) => {
     reader.readAsDataURL(file);
   };
 
-  const handleDictate = async () => {
+  const handleDictate = () => {
     if (!('webkitSpeechRecognition' in window)) {
       console.error("Speech recognition not supported in this browser.");
       return;
@@ -867,11 +895,11 @@ const AccountForm = ({ account, onSave, onClose, onDelete }) => {
   const handleAddNote = async () => {
     if (newNote.trim() === '' || !selectedAccount) return;
     
-    // Create a new note object with a timestamp
+    // Create a new note object with a timestamp and the user's name
     const noteWithTimestamp = { text: newNote, timestamp: new Date().toISOString() };
     
     // Create a new notes array by copying the old ones and adding the new one
-    const updatedNotes = [...selectedAccount.notes, noteWithTimestamp];
+    const updatedNotes = [...(selectedAccount.notes || []), noteWithTimestamp];
 
     // Get a reference to the document to be updated
     const docRef = doc(db, `artifacts/${appId}/users/${user.uid}/accounts`, selectedAccount.id);
@@ -880,7 +908,7 @@ const AccountForm = ({ account, onSave, onClose, onDelete }) => {
     await updateDoc(docRef, { notes: updatedNotes });
 
     // Update the local state with the new note and clear the input field
-    setFormData(prev => ({ ...prev, notes: updatedNotes }));
+    setSelectedAccount(prev => ({ ...prev, notes: updatedNotes }));
     setNewNote('');
   };
 
@@ -1112,7 +1140,7 @@ const AccountForm = ({ account, onSave, onClose, onDelete }) => {
             )}
             <button
               type="button"
-              onClick={handleAddNote}
+              onClick={() => onAddNote(account.id, newNote)}
               className="ml-2 bg-blue-600 text-white px-4 py-2 rounded-full shadow-md hover:bg-blue-700 transition duration-300 ease-in-out"
               disabled={isNoteProcessing || isDictatingNotes || !newNote.trim()}
             >

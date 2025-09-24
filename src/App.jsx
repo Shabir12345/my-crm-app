@@ -10,15 +10,15 @@ const App = () => {
 
   // Use the Firebase projectId as the unique app ID for Firestore paths
   const firebaseConfig = {
-    apiKey: env.REACT_APP_FIREBASE_API_KEY,
-    authDomain: env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-    projectId: env.REACT_APP_FIREBASE_PROJECT_ID,
-    storageBucket: env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-    appId: env.REACT_APP_FIREBASE_APP_ID,
-    measurementId: env.REACT_APP_FIREBASE_MEASUREMENT_ID,
+    apiKey: env.REACT_APP_FIREBASE_API_KEY || "AIzaSyC3GXJMBCPAhbZFGgavxyRova_Hno0csVA",
+    authDomain: env.REACT_APP_FIREBASE_AUTH_DOMAIN || "vitalpulsecrm.firebaseapp.com",
+    projectId: env.REACT_APP_FIREBASE_PROJECT_ID || "vitalpulsecrm",
+    storageBucket: env.REACT_APP_FIREBASE_STORAGE_BUCKET || "vitalpulsecrm.firebasestorage.app",
+    messagingSenderId: env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "671657196543",
+    appId: env.REACT_APP_FIREBASE_APP_ID || "1:671657196543:web:15a2b69b7371d0b7a8c5ca",
+    measurementId: env.REACT_APP_FIREBASE_MEASUREMENT_ID || "G-XXYKEHF990",
   };
-  const appId = env.REACT_APP_FIREBASE_PROJECT_ID;
+  const appId = firebaseConfig.projectId;
 
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
@@ -865,13 +865,21 @@ const AccountForm = ({ account, onSave, onClose, onDelete }) => {
   };
 
   const handleAddNote = async () => {
-    if (newNote.trim() === '' || !account) return;
+    if (newNote.trim() === '' || !selectedAccount) return;
     
-    // Save note to Firestore
-    const updatedNotes = [...formData.notes, { text: newNote, timestamp: new Date().toISOString() }];
-    const docRef = doc(db, `artifacts/${appId}/users/${user.uid}/accounts`, account.id);
+    // Create a new note object with a timestamp
+    const noteWithTimestamp = { text: newNote, timestamp: new Date().toISOString() };
+    
+    // Create a new notes array by copying the old ones and adding the new one
+    const updatedNotes = [...selectedAccount.notes, noteWithTimestamp];
+
+    // Get a reference to the document to be updated
+    const docRef = doc(db, `artifacts/${appId}/users/${user.uid}/accounts`, selectedAccount.id);
+
+    // Update the notes field in Firestore
     await updateDoc(docRef, { notes: updatedNotes });
 
+    // Update the local state with the new note and clear the input field
     setFormData(prev => ({ ...prev, notes: updatedNotes }));
     setNewNote('');
   };
@@ -1085,7 +1093,7 @@ const AccountForm = ({ account, onSave, onClose, onDelete }) => {
                 type="button"
                 onClick={handleNoteDictate}
                 className={`ml-2 flex items-center px-4 py-2 rounded-full transition-colors ${loadingAI ? 'bg-gray-400 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-                disabled={loadingAI}
+                disabled={loadingAI || isNoteProcessing}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M7 4a3 3 0 00-3 3v6a3 3 0 003 3h6a3 3 0 003-3V7a3 3 0 00-3-3H7zm0 2a1 1 0 00-1 1v6a1 1 0 001 1h6a1 1 0 001-1V7a1 1 0 00-1-1H7z" clipRule="evenodd" />
@@ -1106,7 +1114,7 @@ const AccountForm = ({ account, onSave, onClose, onDelete }) => {
               type="button"
               onClick={handleAddNote}
               className="ml-2 bg-blue-600 text-white px-4 py-2 rounded-full shadow-md hover:bg-blue-700 transition duration-300 ease-in-out"
-              disabled={isNoteProcessing || isDictatingNotes}
+              disabled={isNoteProcessing || isDictatingNotes || !newNote.trim()}
             >
               Add Note
             </button>

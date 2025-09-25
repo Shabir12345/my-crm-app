@@ -8,16 +8,19 @@ const App = () => {
   // Use a fallback to an empty object if process is not defined, which happens outside of the Node.js environment
   const env = typeof process !== 'undefined' && process.env ? process.env : {};
 
+  // Log all environment variables at the start
+  console.log("All Env Variables:", env);
+
   // Use the Firebase projectId as the unique app ID for Firestore paths
   const firebaseConfig = {
-    apiKey: env.REACT_APP_FIREBASE_API_KEY || "AIzaSyC3GXJMBCPAhbZFGgavxyRova_Hno0csVA",
-    authDomain: env.REACT_APP_FIREBASE_AUTH_DOMAIN || "vitalpulsecrm.firebaseapp.com",
-    projectId: env.REACT_APP_FIREBASE_PROJECT_ID || "vitalpulsecrm",
-    storageBucket: env.REACT_APP_FIREBASE_STORAGE_BUCKET || "vitalpulsecrm.firebasestorage.app",
-    messagingSenderId: env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "671657196543",
-    appId: env.REACT_APP_FIREBASE_APP_ID || "1:671657196543:web:15a2b69b7371d0b7a8c5ca",
-    measurementId: env.REACT_APP_FIREBASE_MEASUREMENT_ID || "G-XXYKEHF990",
-  };
+  apiKey: env.REACT_APP_FIREBASE_API_KEY || "AIzaSyC3GXJMBCPAhbZFGgavxyRova_Hno0csVA",
+  authDomain: env.REACT_APP_FIREBASE_AUTH_DOMAIN || "vitalpulsecrm.firebaseapp.com",
+  projectId: env.REACT_APP_FIREBASE_PROJECT_ID || "vitalpulsecrm",
+  storageBucket: env.REACT_APP_FIREBASE_STORAGE_BUCKET || "vitalpulsecrm.firebasestorage.app",
+  messagingSenderId: env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "671657196543",
+  appId: env.REACT_APP_FIREBASE_APP_ID || "1:671657196543:web:15a2b69b7371d0b7a8c5ca",
+  measurementId: env.REACT_APP_FIREBASE_MEASUREMENT_ID || "G-XXYKEHF990",
+};
   const appId = firebaseConfig.projectId;
 
   const [db, setDb] = useState(null);
@@ -52,6 +55,7 @@ const App = () => {
         firebaseConfig.appId
       ) {
         const app = initializeApp(firebaseConfig);
+        console.log("Firebase Config Loaded:", firebaseConfig);
         const firestore = getFirestore(app);
         const authInstance = getAuth(app);
         setDb(firestore);
@@ -63,9 +67,9 @@ const App = () => {
         });
         return () => unsubscribe();
       } else {
-        setError("Firebase configuration is missing.");
-        setIsLoading(false);
-      }
+  setError("Missing Firebase config—check .env file.");
+  setIsLoading(false);
+}
     } catch (err) {
       setError("Failed to initialize the application.");
       setIsLoading(false);
@@ -522,47 +526,51 @@ const AccountForm = ({ account, onSave, onClose, onDelete, onAddNote }) => {
   const [liveTranscript, setLiveTranscript] = useState('');
   const [emailDraft, setEmailDraft] = useState('');
   const [agenda, setAgenda] = useState('');
-  const [isAddingAccount, setIsAddingAccount] = useState(false);
+const [isAddingAccount, setIsAddingAccount] = useState(false);
 
-  // IMPORTANT: For production, move API keys to secure environment variables.
-  const callGeminiAPI = async (prompt, mimeType = 'text/plain', inlineData = null, responseSchema = null) => {
-    // Use a fallback key for local testing
-    const apiKey = typeof process !== 'undefined' ? process.env.REACT_APP_GEMINI_API_KEY : 'YOUR_ACTUAL_GEMINI_API_KEY_HERE';
-    if (!apiKey || apiKey === 'YOUR_ACTUAL_GEMINI_API_KEY_HERE') {
-      console.error("Gemini API key is not configured.");
-      setDictationStatus('API key not found. Please check environment variables.');
-      return null;
-    }
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-    const headers = { 'Content-Type': 'application/json' };
-    
-    let payload = {
-        contents: [{ parts: [{ text: prompt }] }],
-    };
-
-    if (inlineData) {
-        payload.contents[0].parts.push({
-            inlineData: { mimeType, data: inlineData }
-        });
-    }
-
-    if (responseSchema) {
-        payload.generationConfig = { responseMimeType: "application/json", responseSchema };
-    }
-
-    try {
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(payload)
-        });
-        const result = await response.json();
-        return result?.candidates?.[0]?.content?.parts?.[0]?.text;
-    } catch (err) {
-        console.error("Error calling Gemini API:", err);
-        return null;
-    }
+// IMPORTANT: For production, move API keys to secure environment variables.
+const callGeminiAPI = async (prompt, mimeType = 'text/plain', inlineData = null, responseSchema = null) => {
+  // Use a fallback key for local testing and debug the env value
+  const apiKey = process.env.REACT_APP_GEMINI_API_KEY || 'AIzaSyD65roIJWhoE_BzVIlK4orMuV6Lu0KWeVA';
+  console.log("Attempting API call with key:", { apiKey, envValue: process.env.REACT_APP_GEMINI_API_KEY });
+  if (!apiKey) {
+    console.error("Gemini API key is missing or invalid. Env value was:", process.env.REACT_APP_GEMINI_API_KEY);
+    return null;
+  }
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const headers = { 'Content-Type': 'application/json' };
+  
+  let payload = {
+    contents: [{ parts: [{ text: prompt }] }],
   };
+
+  if (inlineData) {
+    payload.contents[0].parts.push({
+      inlineData: { mimeType, data: inlineData },
+    });
+  }
+
+  if (responseSchema) {
+    payload.generationConfig = { responseMimeType: "application/json", responseSchema };
+  }
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    console.log("API Response:", data);
+    return data;
+  } catch (error) {
+    console.error("Gemini API call failed:", error.message);
+    return null;
+  }
+};
 
   const recalculateDealScore = async (data) => {
     if (data.stage === 'Closed Won') return 100;
